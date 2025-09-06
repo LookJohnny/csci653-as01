@@ -1,1 +1,7 @@
 # csci653-as01
+A. Problem Description
+We focus on the Amazon Reviews dataset, which contains hundreds of millions of user–product interactions. Our goal is to identify product features that are strongly correlated with purchase decisions. Due to the massive scale of this dataset, high-performance computing and simulations (HPCS) techniques are essential to enable efficient training, large-scale data preprocessing, and correlation analysis.
+B. Methods & HPCS
+We plan to evaluate baseline algorithms including ALS, Neural Collaborative Filtering (NCF), and sequence-based models such as GRU4Rec and SASRec. Evaluation will be based on HR@K, NDCG@K, and Recall@K metrics. To enable scalability, we will employ PyTorch Distributed Data Parallel (DDP), Horovod, and MPI for multi-GPU and multi-node training, as well as OpenMP for CPU-based preprocessing. Mixed precision training will be applied to optimize throughput. Visualization will focus on accuracy curves and scaling efficiency.
+C. Expected Results
+We expect to achieve competitive accuracy on HR@10 and NDCG@10 benchmarks for Amazon Reviews. In terms of performance, we anticipate strong speedup when scaling from single-GPU to multi-GPU and multi-node settings, with efficiency measured through strong and weak scaling studies. The repository will provide reproducible artifacts, including training scripts, Slurm job files, log outputs, and visualizations of both accuracy metrics and scaling curves.
