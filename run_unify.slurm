@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=amazon_unify
-#SBATCH --output=/scratch/%u/amazon2023_unified/logs/%A_%a.out
-#SBATCH --error=/scratch/%u/amazon2023_unified/logs/%A_%a.err
+#SBATCH --output=/home1/%u/amazon2023/amazon23/logs/%A_%a.out
+#SBATCH --error=/home1/%u/amazon2023/amazon23/logs/%A_%a.err
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
@@ -14,16 +14,16 @@ set -e
 set -u
 set -o pipefail
 
-WORK_DIR="${WORK_DIR:-/scratch/$USER/amazon2023_stage}"
-OUT_DIR="${OUT_DIR:-/scratch/$USER/amazon2023_unified}"
+WORK_DIR="${WORK_DIR:-/home1/$USER/amazon2023/amazon2023_stage}"
+OUT_DIR="${OUT_DIR:-/home1/$USER/amazon2023/amazon23}"
 LOG_DIR="${OUT_DIR}/logs"
 
 ROWS_PER_CHUNK="${ROWS_PER_CHUNK:-1500000}"
 THREADS="${SLURM_CPUS_PER_TASK:-32}"
 MAX_ROWS="${MAX_ROWS:-}"
 
-CONDA_ENV="${CONDA_ENV:-darkhorse}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="/home1/yliu0158/amazon2023/csci653-as01"
+VENV_DIR="${SCRIPT_DIR}/venv"
 PIPELINE_SCRIPT="${SCRIPT_DIR}/amazon_unify_pipeline.py"
 
 CATEGORIES=(
@@ -59,10 +59,9 @@ echo "Processing category: ${CATEGORY}"
 mkdir -p "${WORK_DIR}" "${OUT_DIR}" "${LOG_DIR}"
 
 module purge
-module load gcc/11.3.0 python/3.10.8
+module load gcc/12.3.0 python/3.10.16
 
-eval "$(conda shell.bash hook)"
-conda activate "${CONDA_ENV}"
+source "${VENV_DIR}/bin/activate"
 
 CMD="python ${PIPELINE_SCRIPT} --category ${CATEGORY} --work-dir ${WORK_DIR} --out-dir ${OUT_DIR} --rows-per-chunk ${ROWS_PER_CHUNK} --threads ${THREADS}"
 
