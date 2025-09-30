@@ -1,0 +1,130 @@
+# Amazon Reviews 2023 Unified Pipeline Configuration
+
+# Directories
+directories:
+  work_dir: /scratch/$USER/amazon2023_stage
+  out_dir: /scratch/$USER/amazon2023_unified
+  log_dir: ${out_dir}/logs
+
+# Pipeline parameters
+pipeline:
+  rows_per_chunk: 1500000
+  threads: 32
+  timezone: UTC
+  timezone_local: America/Los_Angeles
+
+# Excluded categories (will not be processed)
+excluded_categories:
+  - Movies_and_TV
+  - Software
+  - Subscription_Boxes
+  - Video_Games
+  - Magazine_Subscriptions
+  - Kindle_Store
+  - Gift_Cards
+  - Digital_Music
+  - CDs_and_Vinyl
+  - Books
+
+# Review schema (columns to extract from reviews)
+review_schema:
+  - rating
+  - title
+  - text
+  - images
+  - asin
+  - parent_asin
+  - user_id
+  - timestamp
+  - helpful_vote
+  - verified_purchase
+
+# Metadata columns (to join from metadata)
+metadata_columns:
+  - average_rating
+  - main_category
+  - rating_number
+  - features
+  - description
+  - price
+  - categories
+  - details
+  - parent_asin
+
+# Data cleaning rules
+cleaning:
+  rating:
+    min: 1
+    max: 5
+    handle_outliers: set_na  # or 'clip'
+
+  price:
+    min: 0
+    max_multiplier: 5  # p99 * 5
+    handle_outliers: set_na
+
+  helpful_vote:
+    min: 0
+    handle_negative: set_zero
+
+  timestamp:
+    ms_threshold: 1000000000000  # 10^12
+    handle_invalid: set_na
+
+  text_fields:
+    - title
+    - text
+    - description
+    empty_string_action: set_na
+
+# Deduplication
+deduplication:
+  columns:
+    - user_id
+    - asin
+    - timestamp
+    - text
+  keep: first
+
+# Weekly slicing
+weekly_slicing:
+  method: autots  # or 'pandas'
+  fallback: pandas
+  period: W-MON  # Week starting Monday
+  partition_by: week_start_utc
+
+# Slurm configuration
+slurm:
+  partition: main
+  cpus_per_task: 32
+  mem: 64G
+  time: 24:00:00
+  max_retries: 3
+  retry_delay_seconds: 60
+
+# Validation (for testing)
+validation:
+  enabled: false
+  max_rows: 500000
+  test_categories:
+    - All_Beauty
+    - Electronics
+
+# Output formats
+output:
+  compression: zstd
+  parquet_version: 2.6
+  row_group_size: 100000
+
+# Logging
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  to_file: true
+  to_console: true
+
+# Repository
+repository:
+  base_url: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/resolve/main
+  reviews_path: raw/review_categories/{category}.jsonl
+  metadata_path: raw_meta_{category}/*.parquet
