@@ -11,21 +11,21 @@ from torch.nn.utils.rnn import pad_sequence
 
 # ---- Dataset ----
 class PanelSeqDataset(Dataset):
-    def __init__(self, df, seq_len=32, min_weeks=40):
+    def __init__(self, df, seq_len=32, min_weeks=12):
         # Expect df columns: parent_asin, week_start, reviews, helpful_sum, verified_ratio, rating_mean, label_top5
         self.seq_len = seq_len
         feats = ["reviews","helpful_sum","verified_ratio","rating_mean"]
         self.samples = []
         for pid, g in df.groupby("parent_asin"):
             g = g.sort_values("week_start").reset_index(drop=True)
-            if len(g) < min_weeks: 
+            if len(g) < min_weeks:
                 continue
             X = torch.tensor(g[feats].values, dtype=torch.float32)
             y = torch.tensor(g["label_top5"].values, dtype=torch.float32)
             for t in range(seq_len-1, len(g)):
                 x_seq = X[t-seq_len+1:t+1]
                 y_t = y[t]
-                if torch.isnan(y_t): 
+                if torch.isnan(y_t):
                     continue
                 self.samples.append((x_seq, y_t))
 
