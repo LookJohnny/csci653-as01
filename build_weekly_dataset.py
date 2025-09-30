@@ -36,26 +36,28 @@ def build_weekly_panel(df: pd.DataFrame, top_q: float, min_reviews: int) -> pd.D
     if "parent_asin" not in df.columns:
         raise ValueError("Input must contain a 'parent_asin' column")
 
-    ts = pd.to_datetime(df["timestamp"], errors="coerce", utc=True)
+    ts = pd.to_datetime(df["timestamp"], unit='ms', errors="coerce", utc=True)
     if ts.isna().all():
         raise ValueError("All timestamps failed to parse; check the input format")
-    df["week_start"] = ts.dt.to_period("W-MON").dt.start_time
+    df["week_start"] = ts.dt.tz_localize(None).dt.to_period("W-MON").dt.start_time
 
     df["verified_flag"] = coerce_bool(df.get("verified_purchase"), df.index)
 
     df["helpful_vote"] = pd.to_numeric(df.get("helpful_vote", 0), errors="coerce").fillna(0)
     df["rating"] = pd.to_numeric(df.get("rating", np.nan), errors="coerce")
 
-    agg = (
-        df.groupby(["parent_asin", "week_start"], as_index=False)
-        .agg(
-            reviews=("parent_asin", "size"),
-            helpful_sum=("helpful_vote", "sum"),
-            verified_count=("verified_flag", "sum"),
-            rating_mean=("rating", "mean"),
-            main_category=("main_category", "first"),
-        )
-    )
+    agg_dict = {
+        "reviews": ("parent_asin", "size"),
+        "helpful_sum": ("helpful_vote", "sum"),
+        "verified_count": ("verified_flag", "sum"),
+        "rating_mean": ("rating", "mean"),
+    }
+
+    # Only include main_category if it exists
+    if "main_category" in df.columns:
+        agg_dict["main_category"] = ("main_category", "first")
+
+    agg = df.groupby(["parent_asin", "week_start"], as_index=False).agg(**agg_dict)
 
     agg["verified_ratio"] = np.where(agg["reviews"] > 0, agg["verified_count"] / agg["reviews"], 0.0)
     agg["helpful_sum"] = agg["helpful_sum"].fillna(0)
@@ -83,7 +85,11 @@ def build_weekly_panel(df: pd.DataFrame, top_q: float, min_reviews: int) -> pd.D
 
 def main():
     args = parse_args()
-    df = pd.read_csv(args.input)
+    # Support both CSV and parquet input
+    if args.input.endswith('.parquet'):
+        df = pd.read_parquet(args.input)
+    else:
+        df = pd.read_csv(args.input)
     panel = build_weekly_panel(df, top_q=args.top_quantile, min_reviews=args.min_reviews)
     panel.to_csv(args.out, index=False)
     print(f"Saved panel with {len(panel)} rows to {args.out}")

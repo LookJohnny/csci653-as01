@@ -1,0 +1,11 @@
+# Include configuration and documentation files in package distribution
+include README.md
+include LICENSE
+include requirements.txt
+include config.example.yaml
+include *.slurm
+include *.sh
+recursive-include forecast_ops *.py
+recursive-include tests *.py
+global-exclude __pycache__
+global-exclude *.py[co]
