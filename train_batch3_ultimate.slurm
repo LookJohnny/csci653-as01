@@ -1,14 +1,14 @@
 #!/bin/bash
-#SBATCH --job-name=train_ultimate
-#SBATCH --output=/home1/yliu0158/amazon2023/amazon23/logs/train_ultimate_%A.out
-#SBATCH --error=/home1/yliu0158/amazon2023/amazon23/logs/train_ultimate_%A.err
+#SBATCH --job-name=batch3_ultimate
+#SBATCH --output=/home1/yliu0158/amazon2023/amazon23/logs/batch3_ultimate_%A.out
+#SBATCH --error=/home1/yliu0158/amazon2023/amazon23/logs/batch3_ultimate_%A.err
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --gres=gpu:1
-#SBATCH --mem=128G
+#SBATCH --mem=240G
+#SBATCH --gres=gpu:a100:1
 #SBATCH --time=48:00:00
-#SBATCH --partition=main
+#SBATCH --partition=gpu
 
 set -e
 set -u
@@ -23,21 +23,21 @@ SCRIPT_DIR="/home1/yliu0158/amazon2023/csci653-as01"
 VENV_DIR="${SCRIPT_DIR}/venv"
 OUT_DIR="/home1/yliu0158/amazon2023/amazon23"
 TRAIN_OUT="${OUT_DIR}/training_output"
+BATCH3_OUT="${TRAIN_OUT}/batch3_ultimate"
 
-mkdir -p "${TRAIN_OUT}"
+mkdir -p "${BATCH3_OUT}"
 
 echo "=========================================="
-echo "🚀 ULTIMATE MODEL TRAINING"
+echo "🔥 BATCH 3: ULTIMATE MODEL (BERT + GNN + Multi-Task)"
 echo "=========================================="
 echo "SLURM_JOB_ID = $SLURM_JOB_ID"
 echo "SLURM_JOB_NODELIST = $SLURM_JOB_NODELIST"
 if command -v nvidia-smi &> /dev/null; then
     echo "GPU: $(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader | head -1)"
 fi
-echo "=========================================="
 echo ""
 echo "Advanced Techniques Enabled:"
-echo "  ✓ Multi-Task Learning"
+echo "  ✓ Multi-Task Learning (4 tasks)"
 echo "  ✓ Graph Neural Network"
 echo "  ✓ Contrastive Learning"
 echo "  ✓ Focal Loss"
@@ -45,7 +45,7 @@ echo "  ✓ Mixup Augmentation"
 echo "  ✓ CutMix Augmentation"
 echo "  ✓ Early Stopping"
 echo "  ✓ LR Warmup + Cosine Decay"
-echo "  ✓ Mixed Precision Training"
+echo "  ✓ Mixed Precision Training (AMP)"
 echo "  ✓ Gradient Accumulation"
 echo "=========================================="
 
@@ -54,28 +54,25 @@ module load gcc/12.3.0 python/3.10.16 cuda/12.1
 
 source "${VENV_DIR}/bin/activate"
 
-pip install -q transformers>=4.30.0 tqdm
+# Install dependencies
+pip install -q torch torchvision torchaudio transformers>=4.30.0 tqdm scikit-learn
 
-# Build enhanced features if needed
-FEATURE_FILE="${TRAIN_OUT}/enhanced_panel.csv"
+# Use enhanced features from Batch 1
+FEATURE_FILE="${TRAIN_OUT}/panel_with_external.csv"
+
 if [ ! -f "${FEATURE_FILE}" ]; then
-    echo ""
-    echo "Building enhanced features..."
-    python "${SCRIPT_DIR}/build_enhanced_features.py" \
-      --input "${OUT_DIR}/combined_reviews.parquet" \
-      --out "${FEATURE_FILE}" \
-      --top_quantile 0.95 \
-      --min_reviews 1
+    echo "ERROR: ${FEATURE_FILE} not found. Run Batch 1 first."
+    exit 1
 fi
 
 echo ""
-echo "Starting Ultimate Model Training..."
+echo "=== Training Ultimate Model ==="
 echo ""
 
 python "${SCRIPT_DIR}/train_ultimate.py" \
   --data "${FEATURE_FILE}" \
   --reviews_file "${OUT_DIR}/combined_reviews.parquet" \
-  --out "${TRAIN_OUT}/ultimate_model" \
+  --out "${BATCH3_OUT}/ultimate" \
   --bert_model "distilbert-base-uncased" \
   --seq_len 32 \
   --text_max_len 128 \
@@ -105,16 +102,19 @@ python "${SCRIPT_DIR}/train_ultimate.py" \
 
 echo ""
 echo "=========================================="
-echo "✓ TRAINING COMPLETE!"
+echo "✓ BATCH 3 COMPLETE!"
 echo "=========================================="
-echo "Output: ${TRAIN_OUT}/ultimate_model"
 echo ""
-echo "Files created:"
-ls -lh "${TRAIN_OUT}/ultimate_model/"
+echo "Model trained:"
+echo "  ✓ Ultimate: ${BATCH3_OUT}/ultimate/best_model.pt"
 echo ""
-echo "Best model metrics:"
-if [ -f "${TRAIN_OUT}/ultimate_model/training_metrics.json" ]; then
-    cat "${TRAIN_OUT}/ultimate_model/training_metrics.json"
+if [ -f "${BATCH3_OUT}/ultimate/training_metrics.json" ]; then
+    echo "Best metrics:"
+    cat "${BATCH3_OUT}/ultimate/training_metrics.json"
+    echo ""
 fi
+echo ""
+echo "Next: Submit Batch 4 (Ensemble)"
+echo "  sbatch ${SCRIPT_DIR}/train_batch4_ensemble.slurm"
 echo ""
 echo "=========================================="
